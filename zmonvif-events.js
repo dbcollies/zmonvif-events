@@ -84,7 +84,6 @@ class Monitor {
 }
 
 async function start(args) {
-	console.log(args);
   // Parse the config file
   const file = fs.readFileSync(args.config, 'utf8');
   const config = YAML.parse(file);
