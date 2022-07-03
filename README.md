@@ -2,7 +2,7 @@
 
 A JS CLI tool that attempts to bridge the gap between your ONVIF cameras' motion detection and Zoneminder.
 
-Forked from [zmonvif-events](/nickw444/zmonvif-events).
+Forked from [zmonvif-events](https://github.com/nickw444/zmonvif-events).
 
 
 ## Why?
