@@ -1,13 +1,16 @@
 # zmonvif-events
 
-A JS CLI tool that attempts to bridge the gap between your ONVIF camera's motion detection and Zoneminder.
+A JS CLI tool that attempts to bridge the gap between your ONVIF cameras' motion detection and Zoneminder.
+
+Forked from [zmonvif-events](/nickw444/zmonvif-events).
+
 
 ## Why?
 In a typical Zoneminder installation the server will do video processing to determine which frames have motion. Unfortunately this task is quite CPU intensive. 
 
 Fortunately some ONVIF cameras have built in motion detection features, which notify subscribers when an event occurs. 
 
-This tool connects to an ONVIF camera and subscribes to these messages. When the motion state changes, it uses Zoneminder's API to arm the selected monitor
+This tool connects to multiple ONVIF cameras and subscribes to these messages. When the motion state changes, it uses Zoneminder's API to arm the selected monitors
 
 ## Install
 
@@ -19,44 +22,50 @@ npm install -g zmonvif-events
 
 ```bash
 zmonvif-events --help
-usage: zmonvif-events [-h] -z ZM_BASE_URL -i ZM_MONITOR_ID -c HOSTNAME
-                         [-u USERNAME] [-p PASSWORD]
+usage: zmonvif-events [-h] -c configfile.yaml
 
 
 ONVIF motion detection events bridge to Zoneminder
 
-Optional arguments:
+Arguments:
   -h, --help            Show this help message and exit.
-  -z ZM_BASE_URL, --zm-base-url ZM_BASE_URL
-                        Base URL for the Zoneminder instance (with trailing
-                        slash)
-  -i ZM_MONITOR_ID, --zm-monitor-id ZM_MONITOR_ID
-                        The ID of the monitor in Zoneminder
-  -c HOSTNAME, --hostname HOSTNAME
-                        hostname/IP of the ONVIF camera
-  -u USERNAME, --username USERNAME
-                        username for the ONVIF camera
-  -p PASSWORD, --password PASSWORD
-                        password for the ONVIF camera
+  -c CONFIGFILE, --config CONFIGFILE
+                        Configuration file, in YAML format
+```
+**Example Config File**
+```bash
+zoneminder:
+    url: http://ZONEMINDER_SERVER/zm/ # The URL to Zoneminder
+    username: zmusername              # Username to log in to zoneminder
+    password: ZMPassword              # Password to log in to zoneminder
+
+cameras:                              # A list of cameras to monitor
+    - label: porch                    # Label - used only for logging
+      address: 192.168.0.100          # Address of the camera (name or IP)
+      port: 8899                      # Port number (default: 80)
+      username: camera1user           # User to log in to camera
+      password: camera1password       # Password for camera
+      id: 8                           # Zoneminder ID to trigger on motion
+    - label: garage                   # A Second camera. Add as many as needed
+      address: 192.168.0.101
+      port: 80
+      username: camera2user
+      password: camera2password
+      id: 6
 ```
 
 **Example**
 
 ```bash
-  zmonvif-events \
-      --zm-base-url http://my-zoneminder-instance.com/zm/ \
-      --zm-monitor-id 1 \
-      --hostname 192.168.1.55 \
-      --username supersecretusername \
-      --password dontshareme
+  zmonvif-events -c example.yaml
 ```
 ```
-[monitor 1]: Started
-[monitor 1]: CellMotionDetector: Motion Detected: true
-Setting monitor 1 to state true
-[monitor 1]: CellMotionDetector: Motion Detected: false
-Setting monitor 1 to state false
-[monitor 1]: CellMotionDetector: Motion Detected: true
-Setting monitor 1 to state true
-[monitor 1]: CellMotionDetector: Motion Detected: false
+[monitor 8]: Started
+[monitor 8]: CellMotionDetector: Motion Detected: true
+Setting monitor 8 to state true
+[monitor 8]: CellMotionDetector: Motion Detected: false
+Setting monitor 8 to state false
+[monitor 6]: CellMotionDetector: Motion Detected: true
+Setting monitor 6 to state true
+[monitor 6]: CellMotionDetector: Motion Detected: false
 ```

@@ -4,10 +4,14 @@ const {Cam} = require('onvif');
 const fetch = require('node-fetch');
 const {ArgumentParser} = require('argparse');
 const pjson = require('./package.json');
+const YAML = require('yaml')
+const fs = require('fs');
 
 class ZoneminderService {
-  constructor(basePath) {
-    this.basePath = basePath
+  constructor(args) {
+    this.basePath = args.url;
+    this.username = args.username;
+    this.password = args.password;
   }
 
   /**
@@ -17,7 +21,8 @@ class ZoneminderService {
   setAlarm(monitorId, state) {
     console.log(`Setting monitor ${monitorId} to state ${state}`);
     const cmd = state ? 'on' : 'off';
-    const url = `${this.basePath}api/monitors/alarm/id:${monitorId}/command:${cmd}.json`;
+    const url = `${this.basePath}api/monitors/alarm/id:${monitorId}/command:${cmd}.json?username=${this.username}&password=${this.password}`;
+    // console.log(`fetching ${url}`);
     return fetch(url);
   }
 }
@@ -67,25 +72,36 @@ class Monitor {
     })
   }
 
-  static async create({id, hostname, username, password}, zoneminder) {
+  static async create({id, hostname, username, password, port}, zoneminder) {
     const cam = await this.createCamera({
       hostname,
       username,
-      password
+      password,
+      port
     });
     return new Monitor(id, cam, zoneminder);
   }
 }
 
 async function start(args) {
-  const zoneminder = new ZoneminderService(args.zm_base_url);
-  const monitor = await Monitor.create({
-    id: args.zm_monitor_id,
-    hostname: args.hostname,
-    username: args.username,
-    password: args.password
-  }, zoneminder);
-  monitor.start();
+	console.log(args);
+  // Parse the config file
+  const file = fs.readFileSync(args.config, 'utf8');
+  const config = YAML.parse(file);
+  const zoneminder = new ZoneminderService(config.zoneminder);
+  const cameras = new Array();
+  for(i in config.cameras) {
+   const cam = config.cameras[i];
+   const monitor = await Monitor.create({
+    id: cam.id,
+    hostname: cam.address,
+    username: cam.username,
+    password: cam.password,
+    port: cam.port ? cam.port : 80,
+   }, zoneminder);
+   monitor.start();
+   cameras.push(monitor);
+  }
 }
 
 function main() {
@@ -95,23 +111,9 @@ function main() {
     version: pjson.version,
   });
 
-  parser.addArgument(['-z', '--zm-base-url'], {
-    help: 'Base URL for the Zoneminder instance (with trailing slash)',
+  parser.addArgument(['-c', '--config'], {
+    help: 'Configuration YAML file',
     required: true
-  });
-  parser.addArgument(['-i', '--zm-monitor-id'], {
-    help: 'The ID of the monitor in Zoneminder',
-    required: true
-  });
-  parser.addArgument(['-c', '--hostname'], {
-    help: 'hostname/IP of the ONVIF camera',
-    required: true
-  });
-  parser.addArgument(['-u', '--username'], {
-    help: 'username for the ONVIF camera'
-  });
-  parser.addArgument(['-p', '--password'], {
-    help: 'password for the ONVIF camera'
   });
   const args = parser.parseArgs();
 
