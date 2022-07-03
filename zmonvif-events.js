@@ -22,7 +22,6 @@ class ZoneminderService {
     console.log(`Setting monitor ${monitorId} to state ${state}`);
     const cmd = state ? 'on' : 'off';
     const url = `${this.basePath}api/monitors/alarm/id:${monitorId}/command:${cmd}.json?username=${this.username}&password=${this.password}`;
-    // console.log(`fetching ${url}`);
     return fetch(url);
   }
 }
@@ -33,8 +32,9 @@ let MotionTopic = {
 };
 
 class Monitor {
-  constructor(id, onvifCam, zoneminder) {
+  constructor(label, id, onvifCam, zoneminder) {
     this.id = id;
+    this.label = label;
     this.onvifCam = onvifCam;
     this.zoneminder = zoneminder;
     this.lastMotionDetectedState = null;
@@ -42,7 +42,7 @@ class Monitor {
   }
 
   log(msg, ...rest) {
-    console.log(`[monitor ${this.id}]: ${msg}`, ...rest);
+    console.log(`[monitor ${this.label} (${this.id})]: ${msg}`, ...rest);
   }
 
   async start() {
@@ -72,14 +72,14 @@ class Monitor {
     })
   }
 
-  static async create({id, hostname, username, password, port}, zoneminder) {
+  static async create({label, id, hostname, username, password, port}, zoneminder) {
     const cam = await this.createCamera({
       hostname,
       username,
       password,
       port
     });
-    return new Monitor(id, cam, zoneminder);
+    return new Monitor(label, id, cam, zoneminder);
   }
 }
 
@@ -93,6 +93,7 @@ async function start(args) {
   for(i in config.cameras) {
    const cam = config.cameras[i];
    const monitor = await Monitor.create({
+    label: cam.label,
     id: cam.id,
     hostname: cam.address,
     username: cam.username,
