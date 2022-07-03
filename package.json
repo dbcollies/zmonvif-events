@@ -20,5 +20,9 @@
     "zoneminder",
     "PTZ",
     "RTSP"
-  ]
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/dbcollies/zmonvif-events.git"
+  }
 }
