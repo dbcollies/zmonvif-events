@@ -62,11 +62,12 @@ cameras:                              # A list of cameras to monitor
 ```
 ```
 [monitor porch (8)]: Started
+[monitor garage (6)]: Started
 [monitor porch (8)]: CellMotionDetector: Motion Detected: true
 Setting monitor 8 to state true
 [monitor porch (8)]: CellMotionDetector: Motion Detected: false
 Setting monitor 8 to state false
-[monitor porch (6)]: CellMotionDetector: Motion Detected: true
+[monitor garage (6)]: CellMotionDetector: Motion Detected: true
 Setting monitor 6 to state true
-[monitor porch (6)]: CellMotionDetector: Motion Detected: false
+[monitor garage (6)]: CellMotionDetector: Motion Detected: false
 ```
