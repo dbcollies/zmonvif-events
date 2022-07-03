@@ -1,9 +1,9 @@
 {
   "name": "zmonvif-events",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "main": "index.js",
   "license": "MIT",
-  "homepage": "https://github.com/nickw444/zmonvif-events",
+  "homepage": "https://github.com/dbcollies/zmonvif-events",
   "dependencies": {
     "argparse": "^1.0.10",
     "node-fetch": "^2.1.2",

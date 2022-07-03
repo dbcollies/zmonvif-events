@@ -29,8 +29,9 @@ ONVIF motion detection events bridge to Zoneminder
 
 Arguments:
   -h, --help            Show this help message and exit.
+  -v, --version         Show program's version number and exit.
   -c CONFIGFILE, --config CONFIGFILE
-                        Configuration file, in YAML format
+                        Configuration YAML file
 ```
 **Example Config File**
 ```bash
@@ -60,12 +61,12 @@ cameras:                              # A list of cameras to monitor
   zmonvif-events -c example.yaml
 ```
 ```
-[monitor 8]: Started
-[monitor 8]: CellMotionDetector: Motion Detected: true
+[monitor porch (8)]: Started
+[monitor porch (8)]: CellMotionDetector: Motion Detected: true
 Setting monitor 8 to state true
-[monitor 8]: CellMotionDetector: Motion Detected: false
+[monitor porch (8)]: CellMotionDetector: Motion Detected: false
 Setting monitor 8 to state false
-[monitor 6]: CellMotionDetector: Motion Detected: true
+[monitor porch (6)]: CellMotionDetector: Motion Detected: true
 Setting monitor 6 to state true
-[monitor 6]: CellMotionDetector: Motion Detected: false
+[monitor porch (6)]: CellMotionDetector: Motion Detected: false
 ```
