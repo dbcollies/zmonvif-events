@@ -22,7 +22,7 @@ npm install -g zmonvif-events
 
 ```bash
 zmonvif-events --help
-usage: zmonvif-events [-h] -c configfile.yaml
+usage: zmonvif-events [-h] [-v] [-d] -c configfile.yaml
 
 
 ONVIF motion detection events bridge to Zoneminder
@@ -32,6 +32,7 @@ Arguments:
   -v, --version         Show program's version number and exit.
   -c CONFIGFILE, --config CONFIGFILE
                         Configuration YAML file
+  -d, --debug           Show debugging information
 ```
 **Example Config File**
 ```bash
