@@ -6,12 +6,153 @@ const {ArgumentParser} = require('argparse');
 const pjson = require('./package.json');
 const YAML = require('yaml')
 const fs = require('fs');
+let DEBUG_MODE = false;
 
 class ZoneminderService {
   constructor(args) {
     this.basePath = args.url;
     this.username = args.username;
     this.password = args.password;
+    this.token = null;
+    this.refresh = null;
+    this.tokenExpire = null;
+    this.refreshExpire = null;
+
+    this.requestQueue = new Array();
+    this.queueRunning = false;
+    this.servers = {};
+    this.monitors = {};
+
+    const that = this;
+    this.addToQueue(function() {debug('load servers');that.loadServers()});
+  }
+
+  addToQueue(func) {
+	  // debug('Add to queue');
+    this.requestQueue.push(func);
+    this.processQueue();
+  }
+
+  async processQueue() {
+	  // debug('start process queue');
+    if (this.queueRunning || this.requestQueue.length == 0) {
+	    // debug(`skipping run: ${this.queueRunning} ${this.requestQueue.length}`);
+      return;
+    }
+
+    this.queueRunning = true;
+	  // debug('running queue');
+    // const token = await this.getToken();
+    while (this.requestQueue.length > 0) {
+      // Make sure the token is up to date
+      await this.getToken();
+	    // debug(`queue size: ${this.requestQueue.length}`);
+      await (this.requestQueue.shift())();
+    }
+    this.queueRunning = false;
+
+    // Process the queue again just to make sure something wasn't added
+    this.processQueue();
+  }
+
+  async fetchData(...args) {
+	  debug('fetch')
+	  debug(...args);
+    let resp = await fetch(...args);
+
+    // Keep retring if there is a 504 error code
+    while (!resp.ok && resp.status == 504) {
+      debug('Timeout fetching '+url);
+      resp = await fetch(...args);
+    }
+	  debug(resp);
+
+    return resp;
+  }
+
+  async getToken() {
+	  // debug(this);
+    // Check to see if the toek is expired?
+    const now = Date.now();
+	  // debug('getToken');
+    if (!this.tokenExpire == null || now >= this.tokenExpire) {
+      const params = new URLSearchParams();
+      const url = this.basePath + "api/host/login.json";
+	    // debug('login url: '+url);
+      // Is the expire token still valid?
+      if (now > this.refreshExpire) {
+        params.append('username', this.username);
+        params.append('password', this.password);
+      } else {
+        params.append('token', this.refresh);
+      }
+	    // debug(params);
+	    debug('requesting new token');
+      const resp = await this.fetchData(url, {method: 'POST', body: params});
+	    // debug(resp);
+      const body = await resp.json();
+
+	    debug('token retrieved');
+      // debug(body);
+
+      this.token = body.access_token;
+      this.tokenExpire = now + body.access_token_expires * 900;
+      if (body.hasOwnProperty('refresh_token')) {
+        this.refresh = body.refresh_token;
+        this.refreshExpire = now + body.refresh_token_expires * 900;
+      }
+    }
+
+	  // debug('returning token '+this.token);
+    return this.token;
+  }
+  
+  async loadServers() {
+	  // debug('async servers');
+	  // debug(this);
+    const token = await this.getToken();
+    const url = this.basePath+ 'api/servers.json?token='+token;
+	  // debug(url);
+    const resp = await this.fetchData(url);
+    const data = await resp.json();
+
+	  // debug(data);
+	  for(var i in data.servers) {
+		  const server = data.servers[i].Server;
+		  // debug(data.servers[i].Server);
+		  this.servers[server.Id] = server.Protocol + '://'+server.Hostname+':'+server.Port+server.PathToApi;
+	}
+	// debug(this.servers);
+  }
+	
+  async readMonitorData(monitorId) {
+	  // debug('async monitor '+monitorId);
+	  // debug(this);
+    const token = await this.getToken();
+    const url = this.basePath+ 'api/monitors/'+monitorId+'.json?token='+token;
+	  // debug(url);
+    const resp = await this.fetchData(url);
+    const data = await resp.json();
+
+	  // debug('monitor '+monitorId);
+	  // debug(data);
+	  // debug('monitor level 1');
+	  // debug(data.monitor);
+	  // debug('monitor level 2');
+	  // debug(data.monitor.Monitor);
+	  this.monitors[monitorId] = data.monitor.Monitor.ServerId;
+	  // debug(this.monitors);
+  }
+
+  getMonitorData(monitorId) {
+	  // debug('request data for monitor '+monitorId);
+	  // debug(this);
+	  const that = this;
+    this.addToQueue(async function() {
+	    // debug(`getMonitorData(${monitorId})`);
+	    // debug(that);
+	    await that.readMonitorData(monitorId);
+    });
   }
 
   /**
@@ -19,10 +160,28 @@ class ZoneminderService {
    * @param {boolean} state
    */
   setAlarm(monitorId, state) {
-    console.log(`Setting monitor ${monitorId} to state ${state}`);
+    debug(`Setting monitor ${monitorId} to state ${state}`);
+    // Make sure current monitor data is loaded
+    this.getMonitorData(monitorId);
+
+    const that = this;
     const cmd = state ? 'on' : 'off';
-    const url = `${this.basePath}api/monitors/alarm/id:${monitorId}/command:${cmd}.json?username=${this.username}&password=${this.password}`;
-    return fetch(url);
+    this.addToQueue(async function() {
+	    // debug(`async setAlarm(${monitorId},${state})`);
+      const serverId = that.monitors[monitorId];
+	     // debug(monitorId);
+	     // debug(that.monitors);
+	     // debug(serverId);
+      const baseUrl = that.servers[serverId];
+	     // debug(that.servers);
+
+      const url = `${baseUrl}/monitors/alarm/id:${monitorId}/command:${cmd}.json?token=${that.token}`;
+	     // debug('trigger url: '+url);
+      const resp = await that.fetchData(url);
+      const body = await resp.json();
+       // debug('trigger response body:');
+	     // debug(body);
+    });
   }
 }
 
@@ -39,10 +198,12 @@ class Monitor {
     this.zoneminder = zoneminder;
     this.lastMotionDetectedState = null;
     this.topic = MotionTopic.MOTION_ALARM;
+
+	  // zoneminder.getMonitorData(id);
   }
 
   log(msg, ...rest) {
-    console.log(`[monitor ${this.label} (${this.id})]: ${msg}`, ...rest);
+    debug(`[monitor ${this.label} (${this.id})]: ${msg}`, ...rest);
   }
 
   async start() {
@@ -58,10 +219,16 @@ class Monitor {
   }
 
   onMotionDetectedEvent(camMessage) {
-    const isMotion = camMessage.message.message.data.simpleItem.$.Value;
+    let isMotion = camMessage.message.message.data.simpleItem.$.Value;
     if (this.lastMotionDetectedState !== isMotion) {
       this.log(`CellMotionDetector: Motion Detected: ${isMotion}`);
       this.zoneminder.setAlarm(this.id, isMotion);
+
+      // If this was a trigger, immediately turn if off again
+      if(isMotion) {
+	isMotion = false;
+	this.zoneminder.setAlarm(this.id, isMotion);
+      }
     }
     this.lastMotionDetectedState = isMotion
   }
@@ -85,6 +252,10 @@ class Monitor {
 
 async function start(args) {
   // Parse the config file
+  if(args.debug) {
+    DEBUG_MODE = true;
+  }
+
   const file = fs.readFileSync(args.config, 'utf8');
   const config = YAML.parse(file);
   const zoneminder = new ZoneminderService(config.zoneminder);
@@ -99,8 +270,16 @@ async function start(args) {
     password: cam.password,
     port: cam.port ? cam.port : 80,
    }, zoneminder);
+   // Force the camera to be off
+   zoneminder.setAlarm(cam.id, false);
    monitor.start();
    cameras.push(monitor);
+  }
+}
+
+function debug(...args) {
+  if(DEBUG_MODE) {
+    console.log(...args);
   }
 }
 
@@ -115,6 +294,7 @@ function main() {
     help: 'Configuration YAML file',
     required: true
   });
+  parser.addArgument(['-d', '--debug'], {action: 'storeTrue'}); 
   const args = parser.parseArgs();
 
   start(args);
